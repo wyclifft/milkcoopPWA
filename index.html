@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Milk App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Login -->
+  <div id="login-screen">
+    <h2>Login</h2>
+    <input type="text" id="userid" placeholder="User ID"><br>
+    <input type="password" id="password" placeholder="Password"><br>
+    <button onclick="login()">Login</button>
+  </div>
+
+  <!-- Main App -->
+  <div id="app-screen" style="display:none;">
+    <p id="user-info"></p>
+    <button onclick="logout()">Logout</button>
+
+    <!-- Route Section -->
+    <div id="route-section">
+      <h3>Route</h3>
+      <input type="text" id="route" placeholder="Route (e.g. Mikinduri)" readonly>
+    </div>
+
+    <!-- Section Selection -->
+    <div id="section-selection">
+      <h3>Section</h3>
+      <select id="section">
+        <option value="AM">Morning (AM)</option>
+        <option value="PM">Evening (PM)</option>
+      </select>
+    </div>
+
+    <!-- Farmer Input -->
+    <div id="farmer-section">
+      <h3>Enter Farmer</h3>
+      <input type="text" id="farmer-id" placeholder="Farmer ID"><br>
+      <p id="farmer-name"></p> <!-- auto-filled -->
+
+      <!-- Weight Section -->
+      <h3>Milk Weight</h3>
+      <p id="scale-status">Scale: Not connected</p>
+      <p id="weight-display">Weight: 0.0 Kg</p>
+      <button onclick="connectScale()">Connect Scale</button>
+
+      <!-- Manual entry option -->
+      <input type="number" id="manual-weight" placeholder="Enter weight manually (Kg)">
+      <button onclick="useManualWeight()">Use Manual Weight</button>
+
+      <br><br>
+      <button onclick="saveMilk()">Save & Print</button>
+    </div>
+  </div>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <!-- Your App Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
