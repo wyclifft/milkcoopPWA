@@ -4,6 +4,9 @@ const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 let currentUser = null;
+let bluetoothDevice;
+let bluetoothCharacteristic;
+let currentWeight = 0;
 
 // --- Login ---
 async function login() {
@@ -59,11 +62,7 @@ async function fetchFarmerRoute() {
 document.getElementById("farmer-id").addEventListener("change", fetchFarmerRoute);
 document.getElementById("farmer-id").addEventListener("blur", fetchFarmerRoute);
 
-
 // --- Bluetooth Scale ---
-let bluetoothDevice;
-let bluetoothCharacteristic;
-
 async function connectScale() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
@@ -84,8 +83,18 @@ async function connectScale() {
 
 function handleWeight(event) {
   const value = event.target.value;
-  const weight = value.getUint16(0, true) / 100;
-  document.getElementById("weight-display").innerText = `Weight: ${weight} Kg`;
+  currentWeight = value.getUint16(0, true) / 100;
+  document.getElementById("weight-display").innerText = `Weight: ${currentWeight.toFixed(1)} Kg`;
+
+  // Update total amount
+  updateTotal();
+}
+
+// --- Update total amount ---
+function updateTotal() {
+  const price = parseFloat(document.getElementById("price-per-liter").value) || 0;
+  const total = currentWeight * price;
+  document.getElementById("total-amount").innerText = `Total: Ksh ${total.toFixed(2)}`;
 }
 
 // --- Save Milk & Print ---
@@ -93,11 +102,11 @@ async function saveMilk() {
   const farmerId = document.getElementById("farmer-id").value.trim();
   const route = document.getElementById("route").value.trim();
   const section = document.getElementById("section").value;
-  const weightText = document.getElementById("weight-display").innerText;
-  const weight = parseFloat(weightText.replace("Weight: ", "").replace(" Kg", ""));
+  const price = parseFloat(document.getElementById("price-per-liter").value) || 0;
+  const total = currentWeight * price;
 
-  if (!farmerId || !route || !weight) {
-    alert("Please enter farmer ID, fetch route, and connect scale.");
+  if (!farmerId || !route || !currentWeight) {
+    alert("Please enter farmer ID, fetch route, and input/measure weight.");
     return;
   }
 
@@ -107,7 +116,9 @@ async function saveMilk() {
       farmer_id: farmerId,
       route,
       section,
-      weight,
+      weight: currentWeight,
+      price_per_liter: price,
+      total_amount: total,
       collected_by: currentUser ? currentUser.user_id : null,
       timestamp: new Date().toISOString()
     }]);
@@ -118,10 +129,11 @@ async function saveMilk() {
     return;
   }
 
-  printReceipt(farmerId, route, section, weight);
+  printReceipt(farmerId, route, section, currentWeight, price, total);
 }
 
-async function printReceipt(farmerId, route, section, weight) {
+// --- Print Receipt ---
+async function printReceipt(farmerId, route, section, weight, price, total) {
   try {
     const printer = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: "Printer" }]
@@ -130,7 +142,16 @@ async function printReceipt(farmerId, route, section, weight) {
     const service = await server.getPrimaryService('printer_service_uuid');
     const characteristic = await service.getCharacteristic('printer_characteristic_uuid');
 
-    const receipt = `Milk Receipt\nFarmer: ${farmerId}\nRoute: ${route}\nSection: ${section}\nWeight: ${weight} Kg\nDate: ${new Date().toLocaleString()}\n\n`;
+    const receipt = `
+Milk Receipt
+Farmer: ${farmerId}
+Route: ${route}
+Section: ${section}
+Weight: ${weight.toFixed(1)} Kg
+Price per Liter: Ksh ${price.toFixed(2)}
+Total: Ksh ${total.toFixed(2)}
+Date: ${new Date().toLocaleString()}
+    `;
     const encoder = new TextEncoder();
     await characteristic.writeValue(encoder.encode(receipt));
 
@@ -140,13 +161,18 @@ async function printReceipt(farmerId, route, section, weight) {
     alert("Failed to print receipt: " + err);
   }
 }
-// --- Use Manual Weight ---
+
+// --- Manual Weight Entry ---
 function useManualWeight() {
   const manual = parseFloat(document.getElementById("manual-weight").value);
   if (!isNaN(manual) && manual > 0) {
-    currentWeight = manual; // overwrite the currentWeight variable
+    currentWeight = manual;
     document.getElementById("weight-display").innerText = `Weight: ${manual.toFixed(1)} Kg (manual)`;
+    updateTotal();
   } else {
     alert("Please enter a valid weight.");
   }
 }
+
+// --- Trigger total update when price changes ---
+document.getElementById("price-per-liter").addEventListener("input", updateTotal);
