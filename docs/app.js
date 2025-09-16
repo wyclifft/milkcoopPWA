@@ -4,11 +4,11 @@ const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 let currentUser = null;
-let bluetoothDevice;
-let bluetoothCharacteristic;
 let currentWeight = 0;
-let printerDevice;
-let printerCharacteristic;
+
+// Arrays to store multiple connected devices
+let connectedScales = [];
+let connectedPrinters = [];
 
 // --- Login ---
 async function login() {
@@ -16,7 +16,7 @@ async function login() {
   const password = document.getElementById("password").value.trim();
 
   try {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("app_users")
       .select("*")
       .eq("user_id", userId)
@@ -49,7 +49,7 @@ async function fetchFarmerRoute() {
   if (!farmerId) return;
 
   try {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("farmers")
       .select("route, name")
       .eq("farmer_id", farmerId)
@@ -68,64 +68,50 @@ async function fetchFarmerRoute() {
   }
 }
 
-// --- Auto trigger fetch when farmer ID is entered ---
 document.getElementById("farmer-id").addEventListener("change", fetchFarmerRoute);
 document.getElementById("farmer-id").addEventListener("blur", fetchFarmerRoute);
 
-// --- Scale & Printer UUIDs ---
-const SCALE_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
-const SCALE_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
-const PRINTER_SERVICE_UUID = "00002400-0000-1000-8000-00805f9b34fb";
-const PRINTER_CHARACTERISTIC_UUID = "00002a00-0000-1000-8000-00805f9b34fb";
-
-// --- Connect Devices (Scale + Printer) ---
-async function connectDevices() {
-  // Connect Scale
-  if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
-    try {
-      bluetoothDevice = await navigator.bluetooth.requestDevice({
-        filters: [{ name: "JDY-23A-BLE" }],
-        optionalServices: [SCALE_SERVICE_UUID]
-      });
-
-      const server = await bluetoothDevice.gatt.connect();
-      const service = await server.getPrimaryService(SCALE_SERVICE_UUID);
-      bluetoothCharacteristic = await service.getCharacteristic(SCALE_CHARACTERISTIC_UUID);
-
-      bluetoothCharacteristic.addEventListener("characteristicvaluechanged", handleWeight);
-      await bluetoothCharacteristic.startNotifications();
-
-      document.getElementById("scale-status").innerText = "Scale: Connected ✅";
-      console.log("✅ Scale connected");
-    } catch (err) {
-      console.error("Scale connection error:", err);
-      alert("Failed to connect scale: " + err);
-    }
-  } else {
-    console.log("Scale already connected");
+// --- Scan for any Bluetooth Devices ---
+async function scanBluetoothDevices() {
+  if (!navigator.bluetooth) {
+    alert("Bluetooth not supported in this browser. Use Cordova app on Android.");
+    return;
   }
 
-  // Connect Printer
-  if (!printerDevice || !printerDevice.gatt.connected) {
-    try {
-      printerDevice = await navigator.bluetooth.requestDevice({
-        filters: [{ name: "P502A-1567" }],
-        optionalServices: [PRINTER_SERVICE_UUID]
-      });
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: ["0000ffe0-0000-1000-8000-00805f9b34fb", "00002400-0000-1000-8000-00805f9b34fb"]
+    });
 
-      const server = await printerDevice.gatt.connect();
-      const service = await server.getPrimaryService(PRINTER_SERVICE_UUID);
-      printerCharacteristic = await service.getCharacteristic(PRINTER_CHARACTERISTIC_UUID);
+    const server = await device.gatt.connect();
+    const services = await server.getPrimaryServices();
 
-      document.getElementById("printer-status").innerText = "Printer: Connected ✅";
-      console.log("✅ Printer connected");
-      alert("Printer connected!");
-    } catch (err) {
-      console.error("Printer connection error:", err);
-      alert("Failed to connect printer: " + err);
+    // Determine if it's a scale or printer based on services
+    let isScale = services.some(s => s.uuid.toLowerCase().includes("ffe0"));
+    let isPrinter = services.some(s => s.uuid.toLowerCase().includes("2400"));
+
+    if (isScale) {
+      const scaleService = await server.getPrimaryService("0000ffe0-0000-1000-8000-00805f9b34fb");
+      const scaleChar = await scaleService.getCharacteristic("0000ffe1-0000-1000-8000-00805f9b34fb");
+      scaleChar.addEventListener("characteristicvaluechanged", handleWeight);
+      await scaleChar.startNotifications();
+      connectedScales.push({ device, characteristic: scaleChar });
+      document.getElementById("scale-status").innerText = `Scale Connected: ${device.name}`;
+      console.log("✅ Scale connected:", device.name);
     }
-  } else {
-    console.log("Printer already connected");
+
+    if (isPrinter) {
+      const printerService = await server.getPrimaryService("00002400-0000-1000-8000-00805f9b34fb");
+      const printerChar = await printerService.getCharacteristic("00002a00-0000-1000-8000-00805f9b34fb");
+      connectedPrinters.push({ device, characteristic: printerChar });
+      document.getElementById("printer-status").innerText = `Printer Connected: ${device.name}`;
+      console.log("✅ Printer connected:", device.name);
+    }
+
+  } catch (err) {
+    console.error("Device scan/connect error:", err);
+    alert("Failed to scan/connect device: " + err);
   }
 }
 
@@ -135,8 +121,6 @@ function handleWeight(event) {
     const value = event.target.value;
     const decoder = new TextDecoder("utf-8");
     const rawData = decoder.decode(value);
-
-    console.log("Raw scale data:", rawData);
 
     const match = rawData.match(/(\d+(\.\d+)?)/);
     if (match) {
@@ -195,10 +179,10 @@ async function saveMilk() {
   }
 }
 
-// --- Print Receipt using connected printer ---
+// --- Print Receipt using any connected printer ---
 async function printReceipt(farmerId, route, section, weight, price, total) {
-  if (!printerCharacteristic) {
-    alert("Printer not connected! Please connect the printer first.");
+  if (connectedPrinters.length === 0) {
+    alert("No printer connected! Please scan and connect a printer first.");
     return;
   }
 
@@ -214,9 +198,12 @@ Date: ${new Date().toLocaleString()}
 `;
 
   try {
-    const encoder = new TextEncoder();
-    await printerCharacteristic.writeValue(encoder.encode(receipt));
-    alert("✅ Receipt printed!");
+    // Print to all connected printers
+    for (const printer of connectedPrinters) {
+      const encoder = new TextEncoder();
+      await printer.characteristic.writeValue(encoder.encode(receipt));
+    }
+    alert("✅ Receipt printed to all connected printers!");
   } catch (err) {
     console.error("Print receipt error:", err);
     alert("Failed to print receipt: " + err);
