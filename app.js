@@ -62,10 +62,9 @@ async function fetchFarmerRoute() {
 document.getElementById("farmer-id").addEventListener("change", fetchFarmerRoute);
 document.getElementById("farmer-id").addEventListener("blur", fetchFarmerRoute);
 
-// --- Bluetooth Scale ---
 // --- Bluetooth Scale (JDY-231-SPP) ---
-const SCALE_SERVICE_UUID = "0000FFE0-0000-1000-8000-00805f9b34fb";
-const SCALE_CHARACTERISTIC_UUID = "0000FFE1-0000-1000-8000-00805f9b34fb";
+const SCALE_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
+const SCALE_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
 
 async function connectScale() {
   try {
@@ -97,7 +96,7 @@ function handleWeight(event) {
 
   console.log("Raw scale data:", rawData);
 
-  // Extract number from raw data
+  // Extract number from raw data (e.g., "12.5kg")
   const match = rawData.match(/(\d+(\.\d+)?)/);
   if (match) {
     currentWeight = parseFloat(match[0]);
@@ -105,16 +104,6 @@ function handleWeight(event) {
       `Weight: ${currentWeight.toFixed(1)} Kg`;
     updateTotal();
   }
-}
-
-
-function handleWeight(event) {
-  const value = event.target.value;
-  currentWeight = value.getUint16(0, true) / 100;
-  document.getElementById("weight-display").innerText = `Weight: ${currentWeight.toFixed(1)} Kg`;
-
-  // Update total amount
-  updateTotal();
 }
 
 // --- Update total amount ---
@@ -162,7 +151,7 @@ async function saveMilk() {
 // --- Print Receipt ---
 async function printReceipt(farmerId, route, section, weight, price, total) {
   try {
-    // NOTE: Replace printer_service_uuid and printer_characteristic_uuid with your printer's actual UUIDs
+    // NOTE: Replace printer_service_uuid_here with your printer's actual UUID
     const printer = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: "Printer" }],
       optionalServices: ['printer_service_uuid_here']
