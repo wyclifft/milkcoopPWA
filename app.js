@@ -65,12 +65,17 @@ document.getElementById("farmer-id").addEventListener("blur", fetchFarmerRoute);
 // --- Bluetooth Scale ---
 async function connectScale() {
   try {
+    // Standard Weight Scale service UUID: 0x181D
     bluetoothDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ services: ['weight_scale'] }]
+      filters: [{ services: [0x181D] }],
+      optionalServices: [0x181D] // Needed to access characteristic
     });
+
     const server = await bluetoothDevice.gatt.connect();
-    const service = await server.getPrimaryService('weight_scale');
-    bluetoothCharacteristic = await service.getCharacteristic('weight_measurement');
+    const service = await server.getPrimaryService(0x181D);
+
+    // Weight Measurement characteristic UUID: 0x2A9D
+    bluetoothCharacteristic = await service.getCharacteristic(0x2A9D);
     bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleWeight);
     await bluetoothCharacteristic.startNotifications();
 
@@ -135,12 +140,15 @@ async function saveMilk() {
 // --- Print Receipt ---
 async function printReceipt(farmerId, route, section, weight, price, total) {
   try {
+    // NOTE: Replace printer_service_uuid and printer_characteristic_uuid with your printer's actual UUIDs
     const printer = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: "Printer" }]
+      filters: [{ namePrefix: "Printer" }],
+      optionalServices: ['printer_service_uuid_here']
     });
+
     const server = await printer.gatt.connect();
-    const service = await server.getPrimaryService('printer_service_uuid');
-    const characteristic = await service.getCharacteristic('printer_characteristic_uuid');
+    const service = await server.getPrimaryService('printer_service_uuid_here');
+    const characteristic = await service.getCharacteristic('printer_characteristic_uuid_here');
 
     const receipt = `
 Milk Receipt
