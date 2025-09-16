@@ -47,14 +47,16 @@
     </div>
 
       <!-- Weight Section -->
-      <h3>Milk Weight</h3>
-      <p id="scale-status">Scale: Not connected</p>
-      <p id="weight-display">Weight: 0.0 Kg</p>
-      <button onclick="connectScale()">Connect Scale</button>
+<h3>Milk Weight</h3>
+<p id="scale-status">Scale: Not connected</p>
+<p id="printer-status">Printer: Not connected</p>
+<p id="weight-display">Weight: 0.0 Kg</p>
+<button onclick="connectDevices()">Connect Devices</button>
 
-      <!-- Manual entry option -->
-      <input type="number" id="manual-weight" placeholder="Enter weight manually (Kg)">
-      <button onclick="useManualWeight()">Use Manual Weight</button>
+<!-- Manual entry option -->
+<input type="number" id="manual-weight" placeholder="Enter weight manually (Kg)">
+<button onclick="useManualWeight()">Use Manual Weight</button>
+
 
       <br><br>
       <button onclick="saveMilk()">Save & Print</button>
