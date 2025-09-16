@@ -69,7 +69,7 @@ const SCALE_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
 async function connectScale() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ name: "JDY-231-SPP" }],
+      filters: [{ name: "JDY-23A-BLE" }], // exact advertised name
       optionalServices: [SCALE_SERVICE_UUID]
     });
 
@@ -77,7 +77,6 @@ async function connectScale() {
     const service = await server.getPrimaryService(SCALE_SERVICE_UUID);
     bluetoothCharacteristic = await service.getCharacteristic(SCALE_CHARACTERISTIC_UUID);
 
-    // Listen for weight updates
     bluetoothCharacteristic.addEventListener("characteristicvaluechanged", handleWeight);
     await bluetoothCharacteristic.startNotifications();
 
@@ -88,6 +87,7 @@ async function connectScale() {
     alert("Failed to connect to scale: " + err);
   }
 }
+
 
 function handleWeight(event) {
   const value = event.target.value;
