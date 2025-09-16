@@ -1,0 +1,14 @@
+{
+  "devDependencies": {
+    "cordova-android": "^13.0.0",
+    "cordova-plugin-bluetooth-serial": "^0.4.7"
+  },
+  "cordova": {
+    "platforms": [
+      "android"
+    ],
+    "plugins": {
+      "cordova-plugin-bluetooth-serial": {}
+    }
+  }
+}
