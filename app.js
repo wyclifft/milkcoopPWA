@@ -7,6 +7,8 @@ let currentUser = null;
 let bluetoothDevice;
 let bluetoothCharacteristic;
 let currentWeight = 0;
+let printerDevice;
+let printerCharacteristic;
 
 // --- Login ---
 async function login() {
@@ -69,7 +71,7 @@ const SCALE_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
 async function connectScale() {
   try {
     bluetoothDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ name: "JDY-23A-BLE" }], // exact advertised name
+      filters: [{ name: "JDY-23A-BLE" }],
       optionalServices: [SCALE_SERVICE_UUID]
     });
 
@@ -88,7 +90,27 @@ async function connectScale() {
   }
 }
 
+// --- Bluetooth Printer (P502A-1567) ---
+async function connectPrinter() {
+  try {
+    printerDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ name: "P502A-1567" }],
+      optionalServices: ["00002400-0000-1000-8000-00805f9b34fb"] // Appearance service
+    });
 
+    const server = await printerDevice.gatt.connect();
+    const service = await server.getPrimaryService("00002400-0000-1000-8000-00805f9b34fb");
+    printerCharacteristic = await service.getCharacteristic("00002a00-0000-1000-8000-00805f9b34fb");
+
+    alert("✅ Printer connected!");
+    console.log("Printer connected and ready to print");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to connect printer: " + err);
+  }
+}
+
+// --- Handle Scale Weight ---
 function handleWeight(event) {
   const value = event.target.value;
   const decoder = new TextDecoder("utf-8");
@@ -96,17 +118,16 @@ function handleWeight(event) {
 
   console.log("Raw scale data:", rawData);
 
-  // Extract number from raw data (e.g., "12.5kg")
   const match = rawData.match(/(\d+(\.\d+)?)/);
   if (match) {
     currentWeight = parseFloat(match[0]);
-    document.getElementById("weight-display").innerText = 
+    document.getElementById("weight-display").innerText =
       `Weight: ${currentWeight.toFixed(1)} Kg`;
     updateTotal();
   }
 }
 
-// --- Update total amount ---
+// --- Update Total ---
 function updateTotal() {
   const price = parseFloat(document.getElementById("price-per-liter").value) || 0;
   const total = currentWeight * price;
@@ -145,23 +166,17 @@ async function saveMilk() {
     return;
   }
 
-  printReceipt(farmerId, route, section, currentWeight, price, total);
+  await printReceipt(farmerId, route, section, currentWeight, price, total);
 }
 
-// --- Print Receipt ---
+// --- Print Receipt using connected printer ---
 async function printReceipt(farmerId, route, section, weight, price, total) {
-  try {
-    // NOTE: Replace printer_service_uuid_here with your printer's actual UUID
-    const printer = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: "Printer" }],
-      optionalServices: ['printer_service_uuid_here']
-    });
+  if (!printerCharacteristic) {
+    alert("Printer not connected! Please connect the printer first.");
+    return;
+  }
 
-    const server = await printer.gatt.connect();
-    const service = await server.getPrimaryService('printer_service_uuid_here');
-    const characteristic = await service.getCharacteristic('printer_characteristic_uuid_here');
-
-    const receipt = `
+  const receipt = `
 Milk Receipt
 Farmer: ${farmerId}
 Route: ${route}
@@ -170,11 +185,12 @@ Weight: ${weight.toFixed(1)} Kg
 Price per Liter: Ksh ${price.toFixed(2)}
 Total: Ksh ${total.toFixed(2)}
 Date: ${new Date().toLocaleString()}
-    `;
-    const encoder = new TextEncoder();
-    await characteristic.writeValue(encoder.encode(receipt));
+`;
 
-    alert("Receipt Printed!");
+  const encoder = new TextEncoder();
+  try {
+    await printerCharacteristic.writeValue(encoder.encode(receipt));
+    alert("✅ Receipt printed!");
   } catch (err) {
     console.error(err);
     alert("Failed to print receipt: " + err);
@@ -193,5 +209,5 @@ function useManualWeight() {
   }
 }
 
-// --- Trigger total update when price changes ---
+// --- Update total when price changes ---
 document.getElementById("price-per-liter").addEventListener("input", updateTotal);
