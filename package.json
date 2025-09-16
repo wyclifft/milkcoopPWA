@@ -10,5 +10,9 @@
     "plugins": {
       "cordova-plugin-bluetooth-serial": {}
     }
+  },
+  "dependencies": {
+    "@capacitor/cli": "^6.2.1",
+    "@capacitor/core": "^7.4.3"
   }
 }

@@ -1,0 +1,12 @@
+{
+  "appId": "com.maddasystem.milkapp",
+  "appName": "MilkApp",
+  "webDir": "www",
+  "cordova": {
+    "preferences": {
+      "DisallowOverscroll": "true",
+      "android-minSdkVersion": "21",
+      "BackupWebStorage": "none"
+    }
+  }
+}
