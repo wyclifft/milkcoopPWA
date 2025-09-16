@@ -63,28 +63,50 @@ document.getElementById("farmer-id").addEventListener("change", fetchFarmerRoute
 document.getElementById("farmer-id").addEventListener("blur", fetchFarmerRoute);
 
 // --- Bluetooth Scale ---
+// --- Bluetooth Scale (JDY-231-SPP) ---
+const SCALE_SERVICE_UUID = "0000FFE0-0000-1000-8000-00805f9b34fb";
+const SCALE_CHARACTERISTIC_UUID = "0000FFE1-0000-1000-8000-00805f9b34fb";
+
 async function connectScale() {
   try {
-    // Standard Weight Scale service UUID: 0x181D
     bluetoothDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [0x181D] }],
-      optionalServices: [0x181D] // Needed to access characteristic
+      filters: [{ name: "JDY-231-SPP" }],
+      optionalServices: [SCALE_SERVICE_UUID]
     });
 
     const server = await bluetoothDevice.gatt.connect();
-    const service = await server.getPrimaryService(0x181D);
+    const service = await server.getPrimaryService(SCALE_SERVICE_UUID);
+    bluetoothCharacteristic = await service.getCharacteristic(SCALE_CHARACTERISTIC_UUID);
 
-    // Weight Measurement characteristic UUID: 0x2A9D
-    bluetoothCharacteristic = await service.getCharacteristic(0x2A9D);
-    bluetoothCharacteristic.addEventListener('characteristicvaluechanged', handleWeight);
+    // Listen for weight updates
+    bluetoothCharacteristic.addEventListener("characteristicvaluechanged", handleWeight);
     await bluetoothCharacteristic.startNotifications();
 
     document.getElementById("scale-status").innerText = "Scale: Connected";
+    console.log("✅ Scale connected, listening for data...");
   } catch (err) {
     console.error(err);
-    alert("Failed to connect scale: " + err);
+    alert("Failed to connect to scale: " + err);
   }
 }
+
+function handleWeight(event) {
+  const value = event.target.value;
+  const decoder = new TextDecoder("utf-8");
+  const rawData = decoder.decode(value);
+
+  console.log("Raw scale data:", rawData);
+
+  // Extract number from raw data
+  const match = rawData.match(/(\d+(\.\d+)?)/);
+  if (match) {
+    currentWeight = parseFloat(match[0]);
+    document.getElementById("weight-display").innerText = 
+      `Weight: ${currentWeight.toFixed(1)} Kg`;
+    updateTotal();
+  }
+}
+
 
 function handleWeight(event) {
   const value = event.target.value;
