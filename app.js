@@ -15,21 +15,25 @@ async function login() {
   const userId = document.getElementById("userid").value.trim();
   const password = document.getElementById("password").value.trim();
 
-  let { data, error } = await supabase
-    .from("app_users")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("password", password)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from("app_users")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("password", password)
+      .single();
 
-  if (data) {
-    currentUser = data;
-    document.getElementById("login-screen").style.display = "none";
-    document.getElementById("app-screen").style.display = "block";
-    document.getElementById("user-info").innerText =
-      `Logged in as ${data.user_id} (${data.role})`;
-  } else {
-    alert("Invalid User ID or Password");
+    if (data) {
+      currentUser = data;
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("app-screen").style.display = "block";
+      document.getElementById("user-info").innerText = `Logged in as ${data.user_id} (${data.role})`;
+    } else {
+      alert("Invalid User ID or Password");
+    }
+  } catch (err) {
+    console.error("Login error:", err);
+    alert("Error during login. Check console for details.");
   }
 }
 
@@ -44,19 +48,23 @@ async function fetchFarmerRoute() {
   const farmerId = document.getElementById("farmer-id").value.trim();
   if (!farmerId) return;
 
-  let { data, error } = await supabase
-    .from("farmers")
-    .select("route, name")
-    .eq("farmer_id", farmerId)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from("farmers")
+      .select("route, name")
+      .eq("farmer_id", farmerId)
+      .single();
 
-  if (data) {
-    document.getElementById("route").value = data.route;
-    document.getElementById("farmer-name").innerText =
-      `Farmer: ${data.name} (Route: ${data.route})`;
-  } else {
-    document.getElementById("route").value = "";
-    document.getElementById("farmer-name").innerText = "Farmer not found!";
+    if (data) {
+      document.getElementById("route").value = data.route;
+      document.getElementById("farmer-name").innerText = `Farmer: ${data.name} (Route: ${data.route})`;
+    } else {
+      document.getElementById("route").value = "";
+      document.getElementById("farmer-name").innerText = "Farmer not found!";
+    }
+  } catch (err) {
+    console.error("Fetch farmer error:", err);
+    alert("Error fetching farmer info.");
   }
 }
 
@@ -64,66 +72,80 @@ async function fetchFarmerRoute() {
 document.getElementById("farmer-id").addEventListener("change", fetchFarmerRoute);
 document.getElementById("farmer-id").addEventListener("blur", fetchFarmerRoute);
 
-// --- Bluetooth Scale (JDY-231-SPP) ---
+// --- Scale & Printer UUIDs ---
 const SCALE_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
 const SCALE_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
+const PRINTER_SERVICE_UUID = "00002400-0000-1000-8000-00805f9b34fb";
+const PRINTER_CHARACTERISTIC_UUID = "00002a00-0000-1000-8000-00805f9b34fb";
 
-async function connectScale() {
-  try {
-    bluetoothDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ name: "JDY-23A-BLE" }],
-      optionalServices: [SCALE_SERVICE_UUID]
-    });
+// --- Connect Devices (Scale + Printer) ---
+async function connectDevices() {
+  // Connect Scale
+  if (!bluetoothDevice || !bluetoothDevice.gatt.connected) {
+    try {
+      bluetoothDevice = await navigator.bluetooth.requestDevice({
+        filters: [{ name: "JDY-23A-BLE" }],
+        optionalServices: [SCALE_SERVICE_UUID]
+      });
 
-    const server = await bluetoothDevice.gatt.connect();
-    const service = await server.getPrimaryService(SCALE_SERVICE_UUID);
-    bluetoothCharacteristic = await service.getCharacteristic(SCALE_CHARACTERISTIC_UUID);
+      const server = await bluetoothDevice.gatt.connect();
+      const service = await server.getPrimaryService(SCALE_SERVICE_UUID);
+      bluetoothCharacteristic = await service.getCharacteristic(SCALE_CHARACTERISTIC_UUID);
 
-    bluetoothCharacteristic.addEventListener("characteristicvaluechanged", handleWeight);
-    await bluetoothCharacteristic.startNotifications();
+      bluetoothCharacteristic.addEventListener("characteristicvaluechanged", handleWeight);
+      await bluetoothCharacteristic.startNotifications();
 
-    document.getElementById("scale-status").innerText = "Scale: Connected";
-    console.log("✅ Scale connected, listening for data...");
-  } catch (err) {
-    console.error(err);
-    alert("Failed to connect to scale: " + err);
+      document.getElementById("scale-status").innerText = "Scale: Connected ✅";
+      console.log("✅ Scale connected");
+    } catch (err) {
+      console.error("Scale connection error:", err);
+      alert("Failed to connect scale: " + err);
+    }
+  } else {
+    console.log("Scale already connected");
   }
-}
 
-// --- Bluetooth Printer (P502A-1567) ---
-async function connectPrinter() {
-  try {
-    printerDevice = await navigator.bluetooth.requestDevice({
-      filters: [{ name: "P502A-1567" }],
-      optionalServices: ["00002400-0000-1000-8000-00805f9b34fb"] // Appearance service
-    });
+  // Connect Printer
+  if (!printerDevice || !printerDevice.gatt.connected) {
+    try {
+      printerDevice = await navigator.bluetooth.requestDevice({
+        filters: [{ name: "P502A-1567" }],
+        optionalServices: [PRINTER_SERVICE_UUID]
+      });
 
-    const server = await printerDevice.gatt.connect();
-    const service = await server.getPrimaryService("00002400-0000-1000-8000-00805f9b34fb");
-    printerCharacteristic = await service.getCharacteristic("00002a00-0000-1000-8000-00805f9b34fb");
+      const server = await printerDevice.gatt.connect();
+      const service = await server.getPrimaryService(PRINTER_SERVICE_UUID);
+      printerCharacteristic = await service.getCharacteristic(PRINTER_CHARACTERISTIC_UUID);
 
-    alert("✅ Printer connected!");
-    console.log("Printer connected and ready to print");
-  } catch (err) {
-    console.error(err);
-    alert("Failed to connect printer: " + err);
+      document.getElementById("printer-status").innerText = "Printer: Connected ✅";
+      console.log("✅ Printer connected");
+      alert("Printer connected!");
+    } catch (err) {
+      console.error("Printer connection error:", err);
+      alert("Failed to connect printer: " + err);
+    }
+  } else {
+    console.log("Printer already connected");
   }
 }
 
 // --- Handle Scale Weight ---
 function handleWeight(event) {
-  const value = event.target.value;
-  const decoder = new TextDecoder("utf-8");
-  const rawData = decoder.decode(value);
+  try {
+    const value = event.target.value;
+    const decoder = new TextDecoder("utf-8");
+    const rawData = decoder.decode(value);
 
-  console.log("Raw scale data:", rawData);
+    console.log("Raw scale data:", rawData);
 
-  const match = rawData.match(/(\d+(\.\d+)?)/);
-  if (match) {
-    currentWeight = parseFloat(match[0]);
-    document.getElementById("weight-display").innerText =
-      `Weight: ${currentWeight.toFixed(1)} Kg`;
-    updateTotal();
+    const match = rawData.match(/(\d+(\.\d+)?)/);
+    if (match) {
+      currentWeight = parseFloat(match[0]);
+      document.getElementById("weight-display").innerText = `Weight: ${currentWeight.toFixed(1)} Kg`;
+      updateTotal();
+    }
+  } catch (err) {
+    console.error("Weight parse error:", err);
   }
 }
 
@@ -147,9 +169,8 @@ async function saveMilk() {
     return;
   }
 
-  const { error } = await supabase
-    .from("milk_collection")
-    .insert([{
+  try {
+    const { error } = await supabase.from("milk_collection").insert([{
       farmer_id: farmerId,
       route,
       section,
@@ -160,13 +181,18 @@ async function saveMilk() {
       timestamp: new Date().toISOString()
     }]);
 
-  if (error) {
-    console.error(error);
-    alert("Failed to save milk data");
-    return;
-  }
+    if (error) {
+      console.error("Save milk error:", error);
+      alert("Failed to save milk data");
+      return;
+    }
 
-  await printReceipt(farmerId, route, section, currentWeight, price, total);
+    await printReceipt(farmerId, route, section, currentWeight, price, total);
+
+  } catch (err) {
+    console.error("Save milk exception:", err);
+    alert("Error saving milk data.");
+  }
 }
 
 // --- Print Receipt using connected printer ---
@@ -187,12 +213,12 @@ Total: Ksh ${total.toFixed(2)}
 Date: ${new Date().toLocaleString()}
 `;
 
-  const encoder = new TextEncoder();
   try {
+    const encoder = new TextEncoder();
     await printerCharacteristic.writeValue(encoder.encode(receipt));
     alert("✅ Receipt printed!");
   } catch (err) {
-    console.error(err);
+    console.error("Print receipt error:", err);
     alert("Failed to print receipt: " + err);
   }
 }
