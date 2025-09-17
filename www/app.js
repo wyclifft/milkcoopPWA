@@ -79,6 +79,7 @@ async function scanBluetoothDevices() {
   }
 
   try {
+    console.log("Scanning for Bluetooth devices...");
     const device = await navigator.bluetooth.requestDevice({
       acceptAllDevices: true,
       optionalServices: ["0000ffe0-0000-1000-8000-00805f9b34fb", "00002400-0000-1000-8000-00805f9b34fb"]
@@ -87,7 +88,6 @@ async function scanBluetoothDevices() {
     const server = await device.gatt.connect();
     const services = await server.getPrimaryServices();
 
-    // Determine if it's a scale or printer based on services
     let isScale = services.some(s => s.uuid.toLowerCase().includes("ffe0"));
     let isPrinter = services.some(s => s.uuid.toLowerCase().includes("2400"));
 
@@ -113,6 +113,17 @@ async function scanBluetoothDevices() {
     console.error("Device scan/connect error:", err);
     alert("Failed to scan/connect device: " + err);
   }
+}
+
+// --- Attach Bluetooth scan to button ---
+const connectBtn = document.getElementById("connect-devices");
+if (connectBtn) {
+  connectBtn.addEventListener("click", () => {
+    console.log("Connect Devices button clicked");
+    scanBluetoothDevices();
+  });
+} else {
+  console.warn("Connect Devices button not found in DOM!");
 }
 
 // --- Handle Scale Weight ---
@@ -198,7 +209,6 @@ Date: ${new Date().toLocaleString()}
 `;
 
   try {
-    // Print to all connected printers
     for (const printer of connectedPrinters) {
       const encoder = new TextEncoder();
       await printer.characteristic.writeValue(encoder.encode(receipt));
