@@ -8,8 +8,17 @@
     <author email="wycliffmutethia8@gmail.com" href="https://tecrawebdevelopers.netlify.app">Wycliff Mutethia</author>
     <content src="index.html" />
     <access origin="*" />
+    <allow-navigation href="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="mailto:*" />
     <preference name="loglevel" value="DEBUG" />
     <preference name="DisallowOverscroll" value="true" />
     <preference name="android-minSdkVersion" value="21" />
     <preference name="BackupWebStorage" value="none" />
+    <preference name="Fullscreen" value="true" />
+    <preference name="SplashScreenDelay" value="3000" />
+    <preference name="SplashShowOnlyFirstTime" value="false" />
+    <preference name="Orientation" value="portrait" />
 </widget>

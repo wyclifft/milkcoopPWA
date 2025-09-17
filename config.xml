@@ -2,12 +2,41 @@
 <widget id="com.maddasystems.milkapp" version="1.0.0"
         xmlns="http://www.w3.org/ns/widgets"
         xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    
     <name>MilkApp</name>
     <description>Milk collection app</description>
     <author email="wycliffmutethia8@gmail.com" href="https://tecrawebdevelopers.netlify.app">Wycliff Mutethia</author>
+    
+    <!-- Main entry point -->
     <content src="index.html" />
+    
+    <!-- Allow access to all domains -->
     <access origin="*" />
+    
+    <!-- Preferences -->
     <preference name="DisallowOverscroll" value="true" />
     <preference name="android-minSdkVersion" value="21" />
     <preference name="BackupWebStorage" value="none" />
+    <preference name="Fullscreen" value="true" />
+    <preference name="SplashScreenDelay" value="3000" />
+    <preference name="SplashShowOnlyFirstTime" value="false" />
+    <preference name="Orientation" value="portrait" />
+    
+    <!-- Allow navigation to any local or remote content -->
+    <allow-navigation href="*" />
+    
+    <!-- Allow intent schemes (important for Cordova plugins) -->
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="mailto:*" />
+    
+    <!-- Icons and splash screens (optional, recommended) -->
+    <!--
+    <icon src="res/icon/android/icon-36-ldpi.png" density="ldpi" />
+    <icon src="res/icon/android/icon-48-mdpi.png" density="mdpi" />
+    <icon src="res/icon/android/icon-72-hdpi.png" density="hdpi" />
+    <icon src="res/icon/android/icon-96-xhdpi.png" density="xhdpi" />
+    -->
+    
 </widget>
